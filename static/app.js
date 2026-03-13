@@ -171,7 +171,7 @@
         removeCursor();
         setRunning(false);
         sessionId  = null;
-        evtSource  = null;
+        if (evtSource) { evtSource.close(); evtSource = null; }
         if (continuous) {
           setStatus('Continuous mode: starting next book in 3 s…', 'status-active');
           setTimeout(startGeneration, 3000);
@@ -225,18 +225,24 @@
     sessionId = data.session_id;
 
     evtSource = new EventSource(`/api/events/${sessionId}`);
+    const MAX_RECONNECT_ATTEMPTS = 3;
+    let errorCount = 0;
     evtSource.onmessage = ev => {
+      errorCount = 0;
       try {
         const obj = JSON.parse(ev.data);
         handleEvent(obj.event, obj.data);
       } catch (_) {}
     };
     evtSource.onerror = () => {
+      if (!evtSource) return;
+      if (evtSource.readyState === EventSource.CONNECTING && ++errorCount <= MAX_RECONNECT_ATTEMPTS) return;
       if (running) {
         setStatus('Connection lost. Check server.', 'status-error');
         setRunning(false);
       }
       evtSource.close();
+      evtSource = null;
     };
   }
 
