@@ -30,6 +30,31 @@
   const btnRefresh    = $('btn-refresh');
   const bookList      = $('book-list');
 
+  // ── Config persistence (localStorage) ──────────────────────────────────
+  const CONFIG_KEY = 'liteproducer_config';
+  const configFields = [endpointEl, apiKeyEl, modelEl, titleEl, genreEl, numChEl, plotEl];
+
+  function saveConfig() {
+    const cfg = {};
+    configFields.forEach(el => { cfg[el.id] = el.value; });
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); } catch (_) {}
+  }
+
+  function loadConfig() {
+    try {
+      const raw = localStorage.getItem(CONFIG_KEY);
+      if (!raw) return;
+      const cfg = JSON.parse(raw);
+      configFields.forEach(el => {
+        if (cfg[el.id] !== undefined) el.value = cfg[el.id];
+      });
+    } catch (_) {}
+  }
+
+  configFields.forEach(el => {
+    el.addEventListener('input', saveConfig);
+  });
+
   // ── State ─────────────────────────────────────────────────────────────────
   let sessionId      = null;
   let evtSource      = null;
@@ -297,5 +322,6 @@
   });
 
   // ── Init ──────────────────────────────────────────────────────────────────
+  loadConfig();
   refreshBooks();
 })();

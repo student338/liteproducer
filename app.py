@@ -114,6 +114,7 @@ def call_api(
     messages: list[dict],
     stream: bool = True,
     on_token=None,
+    is_cancelled=None,
 ) -> str:
     """Call a chat completions endpoint, stream tokens, return full text."""
     headers = {"Content-Type": "application/json"}
@@ -138,6 +139,8 @@ def call_api(
             resp.raise_for_status()
             if stream:
                 for raw_line in resp.iter_lines():
+                    if is_cancelled and is_cancelled():
+                        break
                     if not raw_line:
                         continue
                     line = raw_line.decode("utf-8", errors="replace")
@@ -188,6 +191,11 @@ def generate_book(session_id: str):
         if s:
             s["queue"].put({"event": event, "data": data})
 
+    def is_cancelled():
+        with sessions_lock:
+            current = sessions.get(session_id, {})
+            return bool(current.get("cancelled"))
+
     s = sess()
     if not s:
         return
@@ -230,7 +238,13 @@ def generate_book(session_id: str):
         [{"role": "user", "content": outline_prompt}],
         stream=True,
         on_token=on_outline_token,
+        is_cancelled=is_cancelled,
     )
+
+    if is_cancelled():
+        push("status", {"msg": "Generation cancelled.", "phase": "done"})
+        push("done", {})
+        return
 
     # Parse chapter headings from outline
     chapter_headings: list[str] = []
@@ -267,15 +281,14 @@ def generate_book(session_id: str):
 
     for i, heading in enumerate(chapter_headings):
         # Check if cancelled
-        with sessions_lock:
-            current = sessions.get(session_id, {})
-            if current.get("cancelled"):
-                push("status", {"msg": "Generation cancelled.", "phase": "done"})
-                push("done", {})
-                return
+        if is_cancelled():
+            push("status", {"msg": "Generation cancelled.", "phase": "done"})
+            push("done", {})
+            return
 
         # Collect any pending user instructions
         with sessions_lock:
+            current = sessions.get(session_id, {})
             instructions = current.get("instructions", [])
             current["instructions"] = []
 
@@ -307,7 +320,13 @@ def generate_book(session_id: str):
             messages,
             stream=True,
             on_token=make_on_token(chapter_num),
+            is_cancelled=is_cancelled,
         )
+
+        if is_cancelled():
+            push("status", {"msg": "Generation cancelled.", "phase": "done"})
+            push("done", {})
+            return
 
         messages.append({"role": "assistant", "content": chapter_text})
         chapters.append({"heading": full_heading, "text": chapter_text})
