@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>liteproducer 📚</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">📚 liteproducer</span>
+      <span class="tagline">AI-powered literature producer</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ── Configuration Panel ─────────────────────────────────────────── -->
+    <section class="panel" id="config-panel">
+      <h2>⚙️ API &amp; Book Configuration</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="endpoint">Chat Completions Endpoint <span class="req">*</span></label>
+          <input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" />
+        </div>
+        <div class="field">
+          <label for="api-key">API Key</label>
+          <input id="api-key" type="password" placeholder="sk-..." />
+        </div>
+        <div class="field">
+          <label for="model">Model</label>
+          <input id="model" type="text" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo" />
+        </div>
+        <div class="field">
+          <label for="title">Book Title</label>
+          <input id="title" type="text" placeholder="Leave blank to auto-generate" />
+        </div>
+        <div class="field">
+          <label for="genre">Genre</label>
+          <input id="genre" type="text" placeholder="fantasy, sci-fi, mystery, romance…" value="fantasy" list="genre-list" />
+          <datalist id="genre-list">
+            <option value="fantasy"></option>
+            <option value="science fiction"></option>
+            <option value="mystery"></option>
+            <option value="thriller"></option>
+            <option value="romance"></option>
+            <option value="horror"></option>
+            <option value="historical fiction"></option>
+            <option value="literary fiction"></option>
+            <option value="adventure"></option>
+            <option value="western"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="num-chapters">Number of Chapters</label>
+          <input id="num-chapters" type="number" min="1" max="30" value="5" />
+        </div>
+        <div class="field field--wide">
+          <label for="plot">Plot / Synopsis</label>
+          <textarea id="plot" rows="3" placeholder="Describe the plot, setting, characters, themes…"></textarea>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button id="btn-start" class="btn btn-primary">▶ Generate Book</button>
+        <button id="btn-cancel" class="btn btn-danger" disabled>⏹ Cancel</button>
+        <button id="btn-continuous" class="btn btn-secondary">🔁 Continuous Mode</button>
+      </div>
+      <div id="continuous-badge" class="badge badge--off" title="Continuous mode: auto-start a new book when one finishes">
+        Continuous: <strong>OFF</strong>
+      </div>
+    </section>
+
+    <!-- ── Generation Panel ────────────────────────────────────────────── -->
+    <section class="panel" id="generation-panel">
+      <h2>✍️ Generation Progress</h2>
+
+      <!-- Status bar -->
+      <div id="status-bar" class="status-bar status-idle">Idle — configure a book and press Generate.</div>
+
+      <!-- Chapter chips -->
+      <div id="chapter-chips" class="chapter-chips"></div>
+
+      <!-- Live text preview -->
+      <div id="live-preview" class="live-preview">
+        <div id="preview-content" class="preview-content"></div>
+      </div>
+
+      <!-- Instruction input -->
+      <div class="instruction-row">
+        <label for="instruction-input" class="instr-label">💬 Mid-generation instructions:</label>
+        <div class="instr-controls">
+          <input
+            id="instruction-input"
+            type="text"
+            placeholder="e.g. Make the protagonist more mysterious…"
+            disabled
+          />
+          <button id="btn-instruct" class="btn btn-secondary" disabled>Send</button>
+        </div>
+        <small class="instr-hint">Instructions are injected into the next chapter's prompt.</small>
+      </div>
+    </section>
+
+    <!-- ── Books Library ───────────────────────────────────────────────── -->
+    <section class="panel" id="library-panel">
+      <h2>📂 Generated Books</h2>
+      <button id="btn-refresh" class="btn btn-secondary btn-sm">↻ Refresh</button>
+      <ul id="book-list" class="book-list">
+        <li class="empty">No books yet.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
