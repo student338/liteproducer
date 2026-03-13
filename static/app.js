@@ -37,7 +37,7 @@
   function saveConfig() {
     const cfg = {};
     configFields.forEach(el => { cfg[el.id] = el.value; });
-    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); } catch (_) {}
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); } catch (e) { console.warn('Failed to save config', e); }
   }
 
   function loadConfig() {
@@ -48,7 +48,7 @@
       configFields.forEach(el => {
         if (cfg[el.id] !== undefined) el.value = cfg[el.id];
       });
-    } catch (_) {}
+    } catch (e) { console.warn('Failed to load config', e); }
   }
 
   configFields.forEach(el => {

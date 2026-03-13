@@ -280,15 +280,13 @@ def generate_book(session_id: str):
     chapters: list[dict] = []
 
     for i, heading in enumerate(chapter_headings):
-        # Check if cancelled
-        if is_cancelled():
-            push("status", {"msg": "Generation cancelled.", "phase": "done"})
-            push("done", {})
-            return
-
-        # Collect any pending user instructions
+        # Check if cancelled and collect any pending user instructions
         with sessions_lock:
             current = sessions.get(session_id, {})
+            if current.get("cancelled"):
+                push("status", {"msg": "Generation cancelled.", "phase": "done"})
+                push("done", {})
+                return
             instructions = current.get("instructions", [])
             current["instructions"] = []
 
