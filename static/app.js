@@ -1,38 +1,44 @@
-/* liteproducer – frontend logic */
+/* liteproducer -- frontend logic */
 
 (function () {
   'use strict';
 
-  // ── DOM refs ──────────────────────────────────────────────────────────────
+  // -- DOM refs ---------------------------------------------------------------
   const $ = id => document.getElementById(id);
 
-  const endpointEl    = $('endpoint');
-  const apiKeyEl      = $('api-key');
-  const modelEl       = $('model');
-  const titleEl       = $('title');
-  const genreEl       = $('genre');
-  const numChEl       = $('num-chapters');
-  const plotEl        = $('plot');
+  const endpointEl      = $('endpoint');
+  const apiKeyEl        = $('api-key');
+  const modelEl         = $('model');
+  const titleEl         = $('title');
+  const genreEl         = $('genre');
+  const numChEl         = $('num-chapters');
+  const plotEl          = $('plot');
+  const superPromptEl   = $('super-prompt');
+  const derivativeFile  = $('derivative-file');
+  const fileNameLabel   = $('derivative-file-name');
+  const btnClearUpload  = $('btn-clear-upload');
+  const themeSelect     = $('theme-select');
 
-  const btnStart      = $('btn-start');
-  const btnCancel     = $('btn-cancel');
-  const btnContinuous = $('btn-continuous');
-  const contBadge     = $('continuous-badge');
+  const btnStart        = $('btn-start');
+  const btnCancel       = $('btn-cancel');
+  const btnContinuous   = $('btn-continuous');
+  const contBadge       = $('continuous-badge');
 
-  const statusBar     = $('status-bar');
-  const chipsEl       = $('chapter-chips');
-  const previewEl     = $('preview-content');
-  const livePreview   = $('live-preview');
+  const statusBar       = $('status-bar');
+  const chipsEl         = $('chapter-chips');
+  const previewEl       = $('preview-content');
+  const livePreview     = $('live-preview');
 
-  const instrInput    = $('instruction-input');
-  const btnInstruct   = $('btn-instruct');
+  const instrInput      = $('instruction-input');
+  const btnInstruct     = $('btn-instruct');
 
-  const btnRefresh    = $('btn-refresh');
-  const bookList      = $('book-list');
+  const btnRefresh      = $('btn-refresh');
+  const bookList        = $('book-list');
 
-  // ── Config persistence (localStorage) ──────────────────────────────────
-  const CONFIG_KEY = 'liteproducer_config';
-  const configFields = [endpointEl, apiKeyEl, modelEl, titleEl, genreEl, numChEl, plotEl];
+  // -- Config persistence (localStorage) -------------------------------------
+  const CONFIG_KEY    = 'liteproducer_config';
+  const THEME_KEY     = 'liteproducer_theme';
+  const configFields  = [endpointEl, apiKeyEl, modelEl, titleEl, genreEl, numChEl, plotEl, superPromptEl];
 
   function saveConfig() {
     const cfg = {};
@@ -51,20 +57,36 @@
     } catch (e) { console.warn('Failed to load config', e); }
   }
 
-  configFields.forEach(el => {
-    el.addEventListener('input', saveConfig);
-  });
+  configFields.forEach(el => el.addEventListener('input', saveConfig));
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  let sessionId      = null;
-  let evtSource      = null;
-  let continuous     = false;
-  let running        = false;
-  let cursor         = null;
-  let chipMap        = {};       // chapter num → chip element
-  let seenBooks      = new Set();
+  // -- Theme management -------------------------------------------------------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeSelect.value = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  function loadTheme() {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved) { applyTheme(saved); return; }
+    } catch (e) {}
+    applyTheme('dark');
+  }
+
+  themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
+
+  // -- State ------------------------------------------------------------------
+  let sessionId     = null;
+  let evtSource     = null;
+  let continuous    = false;
+  let running       = false;
+  let cursor        = null;
+  let chipMap       = {};
+  let seenBooks     = new Set();
+  let uploadId      = null;   // set after a successful /api/upload
+
+  // -- Helpers ----------------------------------------------------------------
   function setStatus(msg, cls) {
     statusBar.textContent = msg;
     statusBar.className   = 'status-bar ' + (cls || 'status-idle');
@@ -74,16 +96,15 @@
     if (cursor) cursor.remove();
     cursor = null;
 
-    if (cls === 'section-header') {
+    if (cls === 'section-header' || cls === 'summary-header') {
       const span = document.createElement('span');
-      span.className = 'section-header';
+      span.className   = cls;
       span.textContent = '\n' + text + '\n';
       previewEl.appendChild(span);
     } else {
       previewEl.insertAdjacentText('beforeend', text);
     }
 
-    // Blinking cursor
     cursor = document.createElement('span');
     cursor.className = 'cursor';
     previewEl.appendChild(cursor);
@@ -108,7 +129,7 @@
     chipsEl.innerHTML = '';
     chipMap = {};
     headings.forEach((h, i) => {
-      const ch  = document.createElement('div');
+      const ch = document.createElement('div');
       ch.className   = 'chip';
       ch.textContent = `Ch ${i + 1}: ${h}`;
       chipsEl.appendChild(ch);
@@ -121,7 +142,38 @@
     if (ch) ch.className = 'chip ' + state;
   }
 
-  // ── Book library ──────────────────────────────────────────────────────────
+  // -- File upload ------------------------------------------------------------
+  derivativeFile.addEventListener('change', async () => {
+    const file = derivativeFile.files[0];
+    if (!file) return;
+
+    fileNameLabel.textContent = file.name;
+    btnClearUpload.style.display = '';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fileNameLabel.textContent = `${file.name}  (uploading…)`;
+    try {
+      const res  = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      uploadId = data.upload_id;
+      fileNameLabel.textContent = `${file.name}  (${Math.round(data.chars / 1000)}k chars)`;
+    } catch (e) {
+      fileNameLabel.textContent = `${file.name}  [Error: ${e.message}]`;
+      uploadId = null;
+    }
+  });
+
+  btnClearUpload.addEventListener('click', () => {
+    derivativeFile.value      = '';
+    fileNameLabel.textContent = 'No file selected';
+    btnClearUpload.style.display = 'none';
+    uploadId = null;
+  });
+
+  // -- Book library -----------------------------------------------------------
   async function refreshBooks() {
     try {
       const res  = await fetch('/api/books');
@@ -139,28 +191,29 @@
     }
     bookList.innerHTML = '';
     files.forEach(f => {
-      const li  = document.createElement('li');
+      const li   = document.createElement('li');
       li.className = 'book-item';
       const isNew = !seenBooks.has(f);
       if (isNew) seenBooks.add(f);
       li.innerHTML = `
-        <span class="book-name">📄 ${f}</span>
+        <span class="book-name">&#128196; ${f}</span>
         ${isNew ? '<span class="book-new">NEW</span>' : ''}
-        <a href="/books/${encodeURIComponent(f)}" class="btn btn-secondary btn-sm" download>⬇ Download</a>
+        <a href="/books/${encodeURIComponent(f)}" class="btn btn-secondary btn-sm" download>&#8681; Download</a>
       `;
       bookList.appendChild(li);
     });
   }
 
-  // ── SSE event handling ────────────────────────────────────────────────────
+  // -- SSE event handling -----------------------------------------------------
   function handleEvent(evtType, evtData) {
     switch (evtType) {
 
       case 'status': {
         const phase = evtData.phase || '';
-        const cls   = phase === 'done'  ? 'status-done'
-                    : phase === 'error' ? 'status-error'
-                    :                     'status-active';
+        const cls   = phase === 'done'           ? 'status-done'
+                    : phase === 'error'          ? 'status-error'
+                    : phase === 'chapter_summary'? 'status-summary'
+                    :                              'status-active';
         setStatus(evtData.msg, cls);
         break;
       }
@@ -169,12 +222,36 @@
         appendPreview('\n' + evtData + '\n', 'dim');
         break;
 
+      case 'prompts_generated': {
+        // Show auto-generated book concept from super-prompt
+        const auto = evtData.auto_generated || {};
+        let msg = '';
+        if (auto.genre || auto.title || auto.plot) {
+          msg += '\n[Auto-generated from super-prompt]\n';
+          if (auto.genre) msg += `  Genre : ${evtData.genre}\n`;
+          if (auto.title) msg += `  Title : ${evtData.title}\n`;
+          if (auto.plot)  msg += `  Plot  : ${evtData.plot}\n`;
+        }
+        if (msg) appendPreview(msg, 'dim');
+        break;
+      }
+
       case 'outline_done':
         buildChips(evtData.headings || []);
         break;
 
+      case 'chapter_summary_start':
+        appendPreview(`\n[Sketching: ${evtData.heading}]\n`, 'summary-header');
+        markChip(evtData.num, 'sketching');
+        break;
+
+      case 'chapter_summary_done':
+        // summary already streamed token-by-token; just add spacing
+        appendPreview('\n');
+        break;
+
       case 'chapter_start':
-        appendPreview(`\n── ${evtData.heading} ──\n`, 'section-header');
+        appendPreview(`\n-- ${evtData.heading} --\n`, 'section-header');
         markChip(evtData.num, 'active');
         break;
 
@@ -188,17 +265,17 @@
 
       case 'pdf_ready':
         removeCursor();
-        appendPreview(`\n\n✅ PDF saved: ${evtData.filename}\n`);
+        appendPreview(`\n\n[PDF saved: ${evtData.filename}]\n`);
         refreshBooks();
         break;
 
       case 'done':
         removeCursor();
         setRunning(false);
-        sessionId  = null;
+        sessionId = null;
         if (evtSource) { evtSource.close(); evtSource = null; }
         if (continuous) {
-          setStatus('Continuous mode: starting next book in 3 s…', 'status-active');
+          setStatus('Continuous mode: starting next book in 3 s\u2026', 'status-active');
           setTimeout(startGeneration, 3000);
         } else {
           setStatus('Done! Your book is ready.', 'status-done');
@@ -207,7 +284,7 @@
     }
   }
 
-  // ── Start generation ──────────────────────────────────────────────────────
+  // -- Start generation -------------------------------------------------------
   async function startGeneration() {
     const endpoint = endpointEl.value.trim();
     if (!endpoint) {
@@ -215,11 +292,10 @@
       return;
     }
 
-    // Reset preview
     previewEl.textContent = '';
     chipsEl.innerHTML     = '';
     removeCursor();
-    setStatus('Connecting…', 'status-active');
+    setStatus('Connecting\u2026', 'status-active');
     setRunning(true);
 
     const payload = {
@@ -227,9 +303,11 @@
       api_key:      apiKeyEl.value.trim(),
       model:        modelEl.value.trim()    || 'gpt-3.5-turbo',
       title:        titleEl.value.trim(),
-      genre:        genreEl.value.trim()    || 'fantasy',
+      genre:        genreEl.value.trim()    || '',
       num_chapters: parseInt(numChEl.value) || 5,
       plot:         plotEl.value.trim(),
+      super_prompt: superPromptEl.value.trim(),
+      upload_id:    uploadId || '',
     };
 
     let data;
@@ -271,7 +349,7 @@
     };
   }
 
-  // ── Send instruction ──────────────────────────────────────────────────────
+  // -- Send instruction -------------------------------------------------------
   async function sendInstruction() {
     const text = instrInput.value.trim();
     if (!text || !sessionId) return;
@@ -289,39 +367,37 @@
     }
   }
 
-  // ── Cancel ────────────────────────────────────────────────────────────────
+  // -- Cancel -----------------------------------------------------------------
   async function cancelGeneration() {
     if (!sessionId) return;
     try {
       await fetch(`/api/cancel/${sessionId}`, { method: 'POST' });
     } catch (_) {}
-    setStatus('Cancelling…', 'status-active');
+    setStatus('Cancelling\u2026', 'status-active');
   }
 
-  // ── Continuous mode ───────────────────────────────────────────────────────
+  // -- Continuous mode --------------------------------------------------------
   function toggleContinuous() {
     continuous = !continuous;
     if (continuous) {
-      contBadge.className   = 'badge badge--on';
-      contBadge.innerHTML   = 'Continuous: <strong>ON</strong>';
+      contBadge.className = 'badge badge--on';
+      contBadge.innerHTML = 'Continuous: <strong>ON</strong>';
     } else {
-      contBadge.className   = 'badge badge--off';
-      contBadge.innerHTML   = 'Continuous: <strong>OFF</strong>';
+      contBadge.className = 'badge badge--off';
+      contBadge.innerHTML = 'Continuous: <strong>OFF</strong>';
     }
   }
 
-  // ── Wire up events ────────────────────────────────────────────────────────
+  // -- Wire up events ---------------------------------------------------------
   btnStart.addEventListener('click',      startGeneration);
   btnCancel.addEventListener('click',     cancelGeneration);
   btnContinuous.addEventListener('click', toggleContinuous);
   btnRefresh.addEventListener('click',    refreshBooks);
+  btnInstruct.addEventListener('click',   sendInstruction);
+  instrInput.addEventListener('keydown',  e => { if (e.key === 'Enter') sendInstruction(); });
 
-  btnInstruct.addEventListener('click', sendInstruction);
-  instrInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendInstruction();
-  });
-
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // -- Init -------------------------------------------------------------------
+  loadTheme();
   loadConfig();
   refreshBooks();
 })();

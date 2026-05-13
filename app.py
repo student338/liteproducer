@@ -23,6 +23,11 @@ app = Flask(__name__)
 BOOKS_DIR = os.path.join(os.path.dirname(__file__), "books")
 os.makedirs(BOOKS_DIR, exist_ok=True)
 
+# Maximum characters of derivative-work text included in each prompt context.
+# The outline prompt uses a shorter excerpt; the system message uses a larger one.
+DERIVATIVE_OUTLINE_CHARS = 2000
+DERIVATIVE_SYSTEM_CHARS  = 6000
+
 # Active generation sessions keyed by session_id
 sessions: dict[str, dict] = {}
 sessions_lock = threading.Lock()
@@ -259,7 +264,7 @@ def generate_book(session_id: str):
             if derivative_text:
                 gen_prompt += (
                     "Also draw inspiration from this source material:\n"
-                    + derivative_text[:2000] + "\n\n"
+                    + derivative_text[:DERIVATIVE_OUTLINE_CHARS] + "\n\n"
                 )
             gen_prompt += (
                 "Output ONLY the following fields, exactly as labelled, with no extra text:\n"
@@ -296,9 +301,9 @@ def generate_book(session_id: str):
             "title": title or f"A {(genre or 'fiction').title()} Story",
             "plot": plot,
             "auto_generated": {
-                "genre": needs_genre if super_prompt else False,
-                "title": needs_title if super_prompt else False,
-                "plot": needs_plot if super_prompt else False,
+                "genre": bool(needs_genre),
+                "title": bool(needs_title),
+                "plot":  bool(needs_plot),
             },
         })
 
@@ -321,8 +326,7 @@ def generate_book(session_id: str):
             f"and stylistic expectations for this work:\n{super_prompt}"
         )
     if derivative_text:
-        # Truncate to a reasonable size to avoid huge context windows
-        excerpt = derivative_text[:6000]
+        excerpt = derivative_text[:DERIVATIVE_SYSTEM_CHARS]
         system_content += (
             "\n\nDerivative source material (draw inspiration, facts, and themes from this):\n"
             + excerpt
@@ -532,7 +536,8 @@ def upload_derivative():
         else:
             return jsonify({"error": "Unsupported file type. Use .pdf, .md, or .txt"}), 400
     except Exception as exc:
-        return jsonify({"error": f"Failed to parse file: {exc}"}), 400
+        app.logger.error("File parse error: %s", exc)
+        return jsonify({"error": "Failed to parse the uploaded file. Check the format and try again."}), 400
 
     upload_id = uuid.uuid4().hex
     with uploads_lock:
