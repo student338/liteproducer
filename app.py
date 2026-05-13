@@ -216,10 +216,7 @@ def generate_book(session_id: str):
     endpoint = cfg["endpoint"]
     api_key = cfg.get("api_key", "")
     model = cfg.get("model", "gpt-3.5-turbo")
-    genre = cfg.get("genre", "fiction")
-    plot = cfg.get("plot", "")
     num_chapters = int(cfg.get("num_chapters", 5))
-    title = cfg.get("title", "") or f"A {genre.title()} Story"
     super_prompt = cfg.get("super_prompt", "").strip()
     upload_id = cfg.get("upload_id", "").strip()
 
@@ -229,15 +226,100 @@ def generate_book(session_id: str):
         with uploads_lock:
             derivative_text = uploads.get(upload_id, "")
 
+    # ---- Autonomous prompt generation from super-prompt ----
+    # When a super-prompt is provided, use it to auto-generate the book's
+    # genre, title, and plot so that all generated books share the same
+    # thematic DNA while still varying from one another.
+    genre = cfg.get("genre", "").strip()
+    plot = cfg.get("plot", "").strip()
+    title = cfg.get("title", "").strip()
+
+    if super_prompt:
+        push("status", {"msg": "Generating book concept from super-prompt…", "phase": "prompts"})
+
+        needs_title = not title
+        needs_plot = not plot
+        needs_genre = not genre
+
+        if needs_title or needs_plot or needs_genre:
+            missing = []
+            if needs_genre:
+                missing.append("GENRE: <single genre label, e.g. 'dark fantasy'>")
+            if needs_title:
+                missing.append("TITLE: <an evocative book title>")
+            if needs_plot:
+                missing.append("PLOT: <2-4 sentence synopsis covering setting, protagonist, central conflict, and stakes>")
+
+            gen_prompt = (
+                "You are a creative writing consultant. Based on the following creative guardrail, "
+                "generate a unique and compelling book concept. The guardrail describes the shared "
+                "genre, themes, tone, and plot tendencies that all books in this series must follow.\n\n"
+                f"Guardrail: {super_prompt}\n\n"
+            )
+            if derivative_text:
+                gen_prompt += (
+                    "Also draw inspiration from this source material:\n"
+                    + derivative_text[:2000] + "\n\n"
+                )
+            gen_prompt += (
+                "Output ONLY the following fields, exactly as labelled, with no extra text:\n"
+                + "\n".join(missing)
+            )
+
+            generated_raw = call_api(
+                endpoint,
+                api_key,
+                model,
+                [{"role": "user", "content": gen_prompt}],
+                stream=False,
+                is_cancelled=is_cancelled,
+            )
+
+            if is_cancelled():
+                push("status", {"msg": "Generation cancelled.", "phase": "done"})
+                push("done", {})
+                return
+
+            # Parse generated fields
+            for line in generated_raw.splitlines():
+                line = line.strip()
+                if needs_genre and line.upper().startswith("GENRE:"):
+                    genre = line.split(":", 1)[1].strip()
+                elif needs_title and line.upper().startswith("TITLE:"):
+                    title = line.split(":", 1)[1].strip()
+                elif needs_plot and line.upper().startswith("PLOT:"):
+                    plot = line.split(":", 1)[1].strip()
+
+        # Push the resolved (possibly auto-generated) prompts to the UI
+        push("prompts_generated", {
+            "genre": genre or "fiction",
+            "title": title or f"A {(genre or 'fiction').title()} Story",
+            "plot": plot,
+            "auto_generated": {
+                "genre": needs_genre if super_prompt else False,
+                "title": needs_title if super_prompt else False,
+                "plot": needs_plot if super_prompt else False,
+            },
+        })
+
+    # Apply fallbacks after potential auto-generation
+    genre = genre or cfg.get("genre", "fiction") or "fiction"
+    title = title or f"A {genre.title()} Story"
+
     push("status", {"msg": f'Starting book: "{title}"', "phase": "outline"})
 
-    # Build system message, incorporating super-prompt guardrail
+    # Build system message — super-prompt acts as the persistent style guardrail
+    # for every generation step throughout the book
     system_content = (
         f"You are a skilled {genre} author writing a book titled \"{title}\". "
         "Write vivid, immersive prose. Each chapter should be at least 800 words."
     )
     if super_prompt:
-        system_content += f"\n\nAuthor's guardrail (always follow this): {super_prompt}"
+        system_content += (
+            "\n\nCreative guardrail — you must honour this throughout the entire book. "
+            "It defines the genre conventions, recurring themes, tone, plot tendencies, "
+            f"and stylistic expectations for this work:\n{super_prompt}"
+        )
     if derivative_text:
         # Truncate to a reasonable size to avoid huge context windows
         excerpt = derivative_text[:6000]
