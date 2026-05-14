@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,6 +11,16 @@
     <div class="header-inner">
       <span class="logo">📚 liteproducer</span>
       <span class="tagline">AI-powered literature producer</span>
+      <div class="theme-switcher" title="Change theme">
+        <label class="theme-label" for="theme-select">🎨</label>
+        <select id="theme-select">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="sepia">Sepia</option>
+          <option value="ocean">Ocean</option>
+          <option value="terminal">Terminal</option>
+        </select>
+      </div>
     </div>
   </header>
 
@@ -58,6 +68,23 @@
         <div class="field field--wide">
           <label for="plot">Plot / Synopsis</label>
           <textarea id="plot" rows="3" placeholder="Describe the plot, setting, characters, themes…"></textarea>
+        </div>
+        <div class="field field--wide">
+          <label for="super-prompt">
+            Super-Prompt <span class="tag-hint">(guardrail)</span>
+          </label>
+          <textarea id="super-prompt" rows="2" placeholder="e.g. Keep the tone hopeful. Always include a mentor figure. Avoid graphic violence."></textarea>
+          <small class="field-hint">Applied to every generation step to keep output aligned with your vision.</small>
+        </div>
+        <div class="field field--wide">
+          <label>Derivative Work Source <span class="tag-hint">(.pdf / .md / .txt)</span></label>
+          <div class="file-upload-row">
+            <label for="derivative-file" class="btn btn-secondary btn-sm file-btn">📎 Choose File</label>
+            <input id="derivative-file" type="file" accept=".pdf,.md,.txt" hidden />
+            <span id="derivative-file-name" class="file-name-label">No file selected</span>
+            <button id="btn-clear-upload" class="btn btn-secondary btn-sm" style="display:none">✕ Clear</button>
+          </div>
+          <small class="field-hint">The AI will draw from this document when building the story.</small>
         </div>
       </div>
 

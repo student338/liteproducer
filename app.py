@@ -1,7 +1,9 @@
+import io
 import json
 import os
 import queue
 import re
+import tempfile
 import threading
 import time
 import uuid
@@ -11,13 +13,28 @@ import requests
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from fpdf import FPDF
 
+try:
+    from pypdf import PdfReader
+    _PYPDF_AVAILABLE = True
+except ImportError:
+    _PYPDF_AVAILABLE = False
+
 app = Flask(__name__)
 BOOKS_DIR = os.path.join(os.path.dirname(__file__), "books")
 os.makedirs(BOOKS_DIR, exist_ok=True)
 
+# Maximum characters of derivative-work text included in each prompt context.
+# The outline prompt uses a shorter excerpt; the system message uses a larger one.
+DERIVATIVE_OUTLINE_CHARS = 2000
+DERIVATIVE_SYSTEM_CHARS  = 6000
+
 # Active generation sessions keyed by session_id
 sessions: dict[str, dict] = {}
 sessions_lock = threading.Lock()
+
+# Temporary uploaded derivative-work content keyed by upload_id
+uploads: dict[str, str] = {}
+uploads_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -204,20 +221,126 @@ def generate_book(session_id: str):
     endpoint = cfg["endpoint"]
     api_key = cfg.get("api_key", "")
     model = cfg.get("model", "gpt-3.5-turbo")
-    genre = cfg.get("genre", "fiction")
-    plot = cfg.get("plot", "")
     num_chapters = int(cfg.get("num_chapters", 5))
-    title = cfg.get("title", "") or f"A {genre.title()} Story"
+    super_prompt = cfg.get("super_prompt", "").strip()
+    upload_id = cfg.get("upload_id", "").strip()
+
+    # Retrieve derivative source content if an upload was provided
+    derivative_text = ""
+    if upload_id:
+        with uploads_lock:
+            derivative_text = uploads.get(upload_id, "")
+
+    # ---- Autonomous prompt generation from super-prompt ----
+    # When a super-prompt is provided, use it to auto-generate the book's
+    # genre, title, and plot so that all generated books share the same
+    # thematic DNA while still varying from one another.
+    genre = cfg.get("genre", "").strip()
+    plot = cfg.get("plot", "").strip()
+    title = cfg.get("title", "").strip()
+
+    if super_prompt:
+        push("status", {"msg": "Generating book concept from super-prompt…", "phase": "prompts"})
+
+        needs_title = not title
+        needs_plot = not plot
+        needs_genre = not genre
+
+        if needs_title or needs_plot or needs_genre:
+            missing = []
+            if needs_genre:
+                missing.append("GENRE: <single genre label, e.g. 'dark fantasy'>")
+            if needs_title:
+                missing.append("TITLE: <an evocative book title>")
+            if needs_plot:
+                missing.append("PLOT: <2-4 sentence synopsis covering setting, protagonist, central conflict, and stakes>")
+
+            gen_prompt = (
+                "You are a creative writing consultant. Based on the following creative guardrail, "
+                "generate a unique and compelling book concept. The guardrail describes the shared "
+                "genre, themes, tone, and plot tendencies that all books in this series must follow.\n\n"
+                f"Guardrail: {super_prompt}\n\n"
+            )
+            if derivative_text:
+                gen_prompt += (
+                    "Also draw inspiration from this source material:\n"
+                    + derivative_text[:DERIVATIVE_OUTLINE_CHARS] + "\n\n"
+                )
+            gen_prompt += (
+                "Output ONLY the following fields, exactly as labelled, with no extra text:\n"
+                + "\n".join(missing)
+            )
+
+            generated_raw = call_api(
+                endpoint,
+                api_key,
+                model,
+                [{"role": "user", "content": gen_prompt}],
+                stream=False,
+                is_cancelled=is_cancelled,
+            )
+
+            if is_cancelled():
+                push("status", {"msg": "Generation cancelled.", "phase": "done"})
+                push("done", {})
+                return
+
+            # Parse generated fields
+            for line in generated_raw.splitlines():
+                line = line.strip()
+                if needs_genre and line.upper().startswith("GENRE:"):
+                    genre = line.split(":", 1)[1].strip()
+                elif needs_title and line.upper().startswith("TITLE:"):
+                    title = line.split(":", 1)[1].strip()
+                elif needs_plot and line.upper().startswith("PLOT:"):
+                    plot = line.split(":", 1)[1].strip()
+
+        # Push the resolved (possibly auto-generated) prompts to the UI
+        push("prompts_generated", {
+            "genre": genre or "fiction",
+            "title": title or f"A {(genre or 'fiction').title()} Story",
+            "plot": plot,
+            "auto_generated": {
+                "genre": bool(needs_genre),
+                "title": bool(needs_title),
+                "plot":  bool(needs_plot),
+            },
+        })
+
+    # Apply fallbacks after potential auto-generation
+    genre = genre or cfg.get("genre", "fiction") or "fiction"
+    title = title or f"A {genre.title()} Story"
 
     push("status", {"msg": f'Starting book: "{title}"', "phase": "outline"})
 
+    # Build system message — super-prompt acts as the persistent style guardrail
+    # for every generation step throughout the book
+    system_content = (
+        f"You are a skilled {genre} author writing a book titled \"{title}\". "
+        "Write vivid, immersive prose. Each chapter should be at least 800 words."
+    )
+    if super_prompt:
+        system_content += (
+            "\n\nCreative guardrail — you must honour this throughout the entire book. "
+            "It defines the genre conventions, recurring themes, tone, plot tendencies, "
+            f"and stylistic expectations for this work:\n{super_prompt}"
+        )
+    if derivative_text:
+        excerpt = derivative_text[:DERIVATIVE_SYSTEM_CHARS]
+        system_content += (
+            "\n\nDerivative source material (draw inspiration, facts, and themes from this):\n"
+            + excerpt
+        )
+
     # ---- Build outline ----
     outline_prompt = (
-        f'You are a creative author. Write a detailed chapter-by-chapter outline for a {genre} book '
+        f'Write a detailed chapter-by-chapter outline for a {genre} book '
         f'titled "{title}".\n'
     )
     if plot:
         outline_prompt += f"The plot is: {plot}\n"
+    if derivative_text:
+        outline_prompt += "Base the story on the provided source material.\n"
     outline_prompt += (
         f"Produce exactly {num_chapters} chapters. For each chapter provide:\n"
         "CHAPTER N: <short title>\nSUMMARY: <2-3 sentence description>\n\n"
@@ -235,7 +358,10 @@ def generate_book(session_id: str):
         endpoint,
         api_key,
         model,
-        [{"role": "user", "content": outline_prompt}],
+        [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": outline_prompt},
+        ],
         stream=True,
         on_token=on_outline_token,
         is_cancelled=is_cancelled,
@@ -264,17 +390,8 @@ def generate_book(session_id: str):
     push("outline_done", {"headings": chapter_headings})
 
     messages = [
-        {
-            "role": "system",
-            "content": (
-                f"You are a skilled {genre} author writing a book titled \"{title}\". "
-                "Write vivid, immersive prose. Each chapter should be at least 800 words."
-            ),
-        },
-        {
-            "role": "user",
-            "content": outline_text,
-        },
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": outline_text},
     ]
 
     chapters: list[dict] = []
@@ -292,10 +409,56 @@ def generate_book(session_id: str):
 
         chapter_num = i + 1
         full_heading = f"Chapter {chapter_num}: {heading}"
+
+        # ---- Chapter summary sketch ----
+        push("status", {"msg": f"Sketching summary for {full_heading}…", "phase": "chapter_summary", "chapter": chapter_num})
+        push("chapter_summary_start", {"num": chapter_num, "heading": full_heading})
+
+        summary_prompt = (
+            f"Before writing {full_heading}, produce a concise 3-5 sentence scene-by-scene sketch "
+            "of what will happen in this chapter. Cover key beats, character actions, and the emotional arc. "
+            "Output only the sketch, no prose."
+        )
+        if instructions:
+            summary_prompt += "\n\nAdditional author instructions:\n" + "\n".join(
+                f"- {inst}" for inst in instructions
+            )
+
+        summary_messages = messages + [{"role": "user", "content": summary_prompt}]
+
+        chapter_summary_tokens: list[str] = []
+
+        def make_summary_on_token(ch_num):
+            def on_token(tok):
+                chapter_summary_tokens.append(tok)
+                push("token", {"phase": "chapter_summary", "chapter": ch_num, "text": tok})
+            return on_token
+
+        chapter_summary = call_api(
+            endpoint,
+            api_key,
+            model,
+            summary_messages,
+            stream=True,
+            on_token=make_summary_on_token(chapter_num),
+            is_cancelled=is_cancelled,
+        )
+
+        if is_cancelled():
+            push("status", {"msg": "Generation cancelled.", "phase": "done"})
+            push("done", {})
+            return
+
+        push("chapter_summary_done", {"num": chapter_num, "summary": chapter_summary})
+
+        # ---- Write full chapter ----
         push("status", {"msg": f"Writing {full_heading}…", "phase": "chapter", "chapter": chapter_num})
         push("chapter_start", {"num": chapter_num, "heading": full_heading})
 
-        chapter_prompt = f"Write {full_heading} of the book in full."
+        chapter_prompt = (
+            f"Using this chapter sketch as a guide:\n{chapter_summary}\n\n"
+            f"Now write {full_heading} of the book in full, in vivid immersive prose."
+        )
         if instructions:
             chapter_prompt += "\n\nAdditional instructions from the author:\n" + "\n".join(
                 f"- {inst}" for inst in instructions
@@ -349,6 +512,38 @@ def generate_book(session_id: str):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/upload", methods=["POST"])
+def upload_derivative():
+    """Accept a .pdf, .md, or .txt file and return an upload_id for use in /api/start."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    f = request.files["file"]
+    filename = (f.filename or "").lower()
+
+    try:
+        if filename.endswith(".pdf"):
+            if not _PYPDF_AVAILABLE:
+                return jsonify({"error": "PDF support not installed (pypdf missing)"}), 500
+            raw = f.read()
+            reader = PdfReader(io.BytesIO(raw))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            content = "\n\n".join(pages)
+        elif filename.endswith(".md") or filename.endswith(".txt"):
+            content = f.read().decode("utf-8", errors="replace")
+        else:
+            return jsonify({"error": "Unsupported file type. Use .pdf, .md, or .txt"}), 400
+    except Exception as exc:
+        app.logger.error("File parse error: %s", exc)
+        return jsonify({"error": "Failed to parse the uploaded file. Check the format and try again."}), 400
+
+    upload_id = uuid.uuid4().hex
+    with uploads_lock:
+        uploads[upload_id] = content
+
+    return jsonify({"upload_id": upload_id, "chars": len(content)})
 
 
 @app.route("/api/start", methods=["POST"])
