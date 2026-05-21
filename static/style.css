@@ -183,13 +183,33 @@ header {
 #theme-select option { color: #000; background: #fff; }
 
 /* -- Main layout ------------------------------------------------------------ */
-main {
-  max-width: 1100px;
+main.dashboard {
+  max-width: 1300px;
   margin: 24px auto;
   padding: 0 16px;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  grid-template-rows: auto;
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-left {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
+}
+
+.dashboard-right {
+  min-width: 0;
+}
+
+/* Responsive: stack columns on narrow screens */
+@media (max-width: 900px) {
+  main.dashboard {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* -- Panel ------------------------------------------------------------------ */
@@ -407,6 +427,33 @@ details[open] .advanced-summary::before { transform: rotate(90deg); }
   padding: 14px;
   border-top: 1px solid var(--border);
   background: var(--bg2);
+}
+
+/* API settings grid: 2 cols for short fields, system prompt spans full width */
+.api-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+/* Generation panel fills the right column height */
+#generation-panel {
+  display: flex;
+  flex-direction: column;
+}
+.live-preview {
+  flex: 1;
+}
+
+/* Library header row */
+.library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+.library-header h2 {
+  margin-bottom: 0;
 }
 
 

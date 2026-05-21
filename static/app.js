@@ -9,6 +9,7 @@
   const endpointEl      = $('endpoint');
   const apiKeyEl        = $('api-key');
   const modelEl         = $('model');
+  const systemPromptEl  = $('system-prompt');
   const titleEl         = $('title');
   const genreEl         = $('genre');
   const numChEl         = $('num-chapters');
@@ -38,7 +39,7 @@
   // -- Config persistence (localStorage) -------------------------------------
   const CONFIG_KEY    = 'liteproducer_config';
   const THEME_KEY     = 'liteproducer_theme';
-  const configFields  = [endpointEl, apiKeyEl, modelEl, titleEl, genreEl, numChEl, plotEl, superPromptEl];
+  const configFields  = [endpointEl, apiKeyEl, modelEl, systemPromptEl, titleEl, genreEl, numChEl, plotEl, superPromptEl];
 
   function saveConfig() {
     const cfg = {};
@@ -300,14 +301,15 @@
 
     const payload = {
       endpoint,
-      api_key:      apiKeyEl.value.trim(),
-      model:        modelEl.value.trim()    || 'gpt-3.5-turbo',
-      title:        titleEl.value.trim(),
-      genre:        genreEl.value.trim()    || '',
-      num_chapters: parseInt(numChEl.value) || 5,
-      plot:         plotEl.value.trim(),
-      super_prompt: superPromptEl.value.trim(),
-      upload_id:    uploadId || '',
+      api_key:       apiKeyEl.value.trim(),
+      model:         modelEl.value.trim()    || 'gpt-3.5-turbo',
+      system_prompt: systemPromptEl.value.trim(),
+      title:         titleEl.value.trim(),
+      genre:         genreEl.value.trim()    || '',
+      num_chapters:  parseInt(numChEl.value) || 5,
+      plot:          plotEl.value.trim(),
+      super_prompt:  superPromptEl.value.trim(),
+      upload_id:     uploadId || '',
     };
 
     let data;

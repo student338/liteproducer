@@ -314,11 +314,17 @@ def generate_book(session_id: str):
     push("status", {"msg": f'Starting book: "{title}"', "phase": "outline"})
 
     # Build system message — super-prompt (seed) informs every generation step,
-    # driving the voice, themes, and style throughout the book
-    system_content = (
-        f"You are a skilled {genre} author writing a book titled \"{title}\". "
-        "Write vivid, immersive prose. Each chapter should be at least 800 words."
-    )
+    # driving the voice, themes, and style throughout the book.
+    # If the user provided a custom system prompt it replaces the default persona;
+    # the seed and derivative text are still appended when present.
+    custom_system_prompt = cfg.get("system_prompt", "").strip()
+    if custom_system_prompt:
+        system_content = custom_system_prompt
+    else:
+        system_content = (
+            f"You are a skilled {genre} author writing a book titled \"{title}\". "
+            "Write vivid, immersive prose. Each chapter should be at least 800 words."
+        )
     if super_prompt:
         system_content += (
             "\n\nCreative seed — let this guide the entire voice, themes, style, "
