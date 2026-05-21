@@ -18,6 +18,10 @@ The very simple, production-ready AI-powered literature producer 📚🤖
 
 ![liteproducer sepia theme](docs/screenshots/sepia-theme.png)
 
+**Terminal theme**
+
+![liteproducer terminal theme](docs/screenshots/terminal-theme.png)
+
 </details>
 
 ## Features
