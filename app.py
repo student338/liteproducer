@@ -23,6 +23,9 @@ app = Flask(__name__)
 BOOKS_DIR = os.path.join(os.path.dirname(__file__), "books")
 os.makedirs(BOOKS_DIR, exist_ok=True)
 
+# Path to the local credentials file.  Never committed (listed in .gitignore).
+API_ENV_PATH = os.path.join(os.path.dirname(__file__), "api.env")
+
 # Maximum characters of derivative-work text included in each prompt context.
 # The outline prompt uses a shorter excerpt; the system message uses a larger one.
 DERIVATIVE_OUTLINE_CHARS = 2000
@@ -35,6 +38,42 @@ sessions_lock = threading.Lock()
 # Temporary uploaded derivative-work content keyed by upload_id
 uploads: dict[str, str] = {}
 uploads_lock = threading.Lock()
+
+# ---------------------------------------------------------------------------
+# api.env helpers
+# ---------------------------------------------------------------------------
+
+_CRED_KEYS = ("endpoint", "api_key", "model")
+
+
+def _read_api_env() -> dict:
+    """Parse api.env and return a dict with credential keys."""
+    creds: dict = {k: "" for k in _CRED_KEYS}
+    try:
+        with open(API_ENV_PATH, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip().lower()
+                if key in _CRED_KEYS:
+                    creds[key] = value.strip()
+    except FileNotFoundError:
+        pass
+    return creds
+
+
+def _write_api_env(creds: dict) -> None:
+    """Persist credentials to api.env (simple KEY=value format)."""
+    lines = [
+        "# liteproducer API credentials – do not commit this file\n",
+        f"endpoint={creds.get('endpoint', '')}\n",
+        f"api_key={creds.get('api_key', '')}\n",
+        f"model={creds.get('model', '')}\n",
+    ]
+    with open(API_ENV_PATH, "w", encoding="utf-8") as fh:
+        fh.writelines(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -642,6 +681,19 @@ def list_books():
 @app.route("/books/<path:filename>")
 def download_book(filename: str):
     return send_from_directory(BOOKS_DIR, filename, as_attachment=True)
+
+
+@app.route("/api/credentials", methods=["GET"])
+def get_credentials():
+    return jsonify(_read_api_env())
+
+
+@app.route("/api/credentials", methods=["POST"])
+def save_credentials():
+    data = request.get_json(force=True)
+    creds = {k: str(data.get(k, "")).strip() for k in _CRED_KEYS}
+    _write_api_env(creds)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

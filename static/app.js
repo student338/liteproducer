@@ -40,6 +40,8 @@
   // -- Config persistence (localStorage) -------------------------------------
   const CONFIG_KEY    = 'liteproducer_config';
   const THEME_KEY     = 'liteproducer_theme';
+  // Credential fields are synced with the server (api.env); the rest use localStorage.
+  const credFields    = [endpointEl, apiKeyEl, modelEl];
   const configFields  = [endpointEl, apiKeyEl, modelEl, systemPromptEl, titleEl, genreEl, numChEl, plotEl, superPromptEl, numBooksTotalEl];
 
   function saveConfig() {
@@ -59,7 +61,40 @@
     } catch (e) { console.warn('Failed to load config', e); }
   }
 
+  // Save credential fields to server (api.env) whenever they change.
+  let credSaveTimer = null;
+  function scheduleCredSave() {
+    clearTimeout(credSaveTimer);
+    credSaveTimer = setTimeout(saveCredentials, 500);
+  }
+
+  async function saveCredentials() {
+    try {
+      await fetch('/api/credentials', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          endpoint: endpointEl.value.trim(),
+          api_key:  apiKeyEl.value.trim(),
+          model:    modelEl.value.trim(),
+        }),
+      });
+    } catch (e) { console.warn('Failed to save credentials to server', e); }
+  }
+
+  async function loadCredentials() {
+    try {
+      const res = await fetch('/api/credentials');
+      if (!res.ok) return;
+      const creds = await res.json();
+      if (creds.endpoint) endpointEl.value = creds.endpoint;
+      if (creds.api_key)  apiKeyEl.value   = creds.api_key;
+      if (creds.model)    modelEl.value     = creds.model;
+    } catch (e) { console.warn('Failed to load credentials from server', e); }
+  }
+
   configFields.forEach(el => el.addEventListener('input', saveConfig));
+  credFields.forEach(el => el.addEventListener('input', scheduleCredSave));
 
   // -- Theme management -------------------------------------------------------
   function applyTheme(theme) {
@@ -416,5 +451,6 @@
   // -- Init -------------------------------------------------------------------
   loadTheme();
   loadConfig();
+  loadCredentials();
   refreshBooks();
 })();

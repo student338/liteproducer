@@ -11,3 +11,4 @@ books/*.pdf
 dist/
 build/
 .DS_Store
+api.env
