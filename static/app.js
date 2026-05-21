@@ -223,11 +223,11 @@
         break;
 
       case 'prompts_generated': {
-        // Show auto-generated book concept from super-prompt
+        // Show auto-generated book concept from seed
         const auto = evtData.auto_generated || {};
         let msg = '';
         if (auto.genre || auto.title || auto.plot) {
-          msg += '\n[Auto-generated from super-prompt]\n';
+          msg += '\n[Autonomously generated from seed]\n';
           if (auto.genre) msg += `  Genre : ${evtData.genre}\n`;
           if (auto.title) msg += `  Title : ${evtData.title}\n`;
           if (auto.plot)  msg += `  Plot  : ${evtData.plot}\n`;

@@ -27,27 +27,22 @@
   <main>
     <!-- ── Configuration Panel ─────────────────────────────────────────── -->
     <section class="panel" id="config-panel">
-      <h2>⚙️ API &amp; Book Configuration</h2>
+      <h2>⚙️ Book Configuration</h2>
       <div class="form-grid">
-        <div class="field">
-          <label for="endpoint">Chat Completions Endpoint <span class="req">*</span></label>
-          <input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" />
+        <div class="field field--wide">
+          <label for="super-prompt">
+            Super-Prompt <span class="tag-hint">(seed)</span>
+          </label>
+          <textarea id="super-prompt" rows="3" placeholder="e.g. A world where magic is tied to music, dark academia tone, coming-of-age themes with morally grey characters…"></textarea>
+          <small class="field-hint">Acts as a generative seed — the AI will autonomously derive the genre, title, plot, and every chapter prompt from this. Leave other fields blank to let the seed drive everything.</small>
         </div>
         <div class="field">
-          <label for="api-key">API Key</label>
-          <input id="api-key" type="password" placeholder="sk-..." />
+          <label for="title">Book Title <span class="tag-hint">(optional — auto-seeded)</span></label>
+          <input id="title" type="text" placeholder="Leave blank to auto-generate from seed" />
         </div>
         <div class="field">
-          <label for="model">Model</label>
-          <input id="model" type="text" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo" />
-        </div>
-        <div class="field">
-          <label for="title">Book Title</label>
-          <input id="title" type="text" placeholder="Leave blank to auto-generate" />
-        </div>
-        <div class="field">
-          <label for="genre">Genre</label>
-          <input id="genre" type="text" placeholder="fantasy, sci-fi, mystery, romance…" value="fantasy" list="genre-list" />
+          <label for="genre">Genre <span class="tag-hint">(optional — auto-seeded)</span></label>
+          <input id="genre" type="text" placeholder="Leave blank to auto-generate from seed" list="genre-list" />
           <datalist id="genre-list">
             <option value="fantasy"></option>
             <option value="science fiction"></option>
@@ -66,15 +61,8 @@
           <input id="num-chapters" type="number" min="1" max="30" value="5" />
         </div>
         <div class="field field--wide">
-          <label for="plot">Plot / Synopsis</label>
-          <textarea id="plot" rows="3" placeholder="Describe the plot, setting, characters, themes…"></textarea>
-        </div>
-        <div class="field field--wide">
-          <label for="super-prompt">
-            Super-Prompt <span class="tag-hint">(guardrail)</span>
-          </label>
-          <textarea id="super-prompt" rows="2" placeholder="e.g. Keep the tone hopeful. Always include a mentor figure. Avoid graphic violence."></textarea>
-          <small class="field-hint">Applied to every generation step to keep output aligned with your vision.</small>
+          <label for="plot">Plot / Synopsis <span class="tag-hint">(optional — auto-seeded)</span></label>
+          <textarea id="plot" rows="3" placeholder="Leave blank to auto-generate from seed, or describe the plot, setting, characters, themes…"></textarea>
         </div>
         <div class="field field--wide">
           <label>Derivative Work Source <span class="tag-hint">(.pdf / .md / .txt)</span></label>
@@ -87,6 +75,25 @@
           <small class="field-hint">The AI will draw from this document when building the story.</small>
         </div>
       </div>
+
+      <!-- Advanced Options (API settings) -->
+      <details class="advanced-options" id="advanced-options">
+        <summary class="advanced-summary">⚙️ Advanced Options</summary>
+        <div class="form-grid advanced-grid">
+          <div class="field">
+            <label for="endpoint">Chat Completions Endpoint <span class="req">*</span></label>
+            <input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" />
+          </div>
+          <div class="field">
+            <label for="api-key">API Key</label>
+            <input id="api-key" type="password" placeholder="sk-..." />
+          </div>
+          <div class="field">
+            <label for="model">Model</label>
+            <input id="model" type="text" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo" />
+          </div>
+        </div>
+      </details>
 
       <div class="actions-row">
         <button id="btn-start" class="btn btn-primary">▶ Generate Book</button>

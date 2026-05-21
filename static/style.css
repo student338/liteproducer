@@ -375,7 +375,41 @@ textarea { resize: vertical; }
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* -- Instruction row -------------------------------------------------------- */
+/* -- Advanced options (collapsible) ----------------------------------------- */
+.advanced-options {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  background: var(--bg3);
+  overflow: hidden;
+}
+.advanced-summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.advanced-summary::-webkit-details-marker { display: none; }
+.advanced-summary::before {
+  content: '▶';
+  font-size: .7rem;
+  transition: transform .2s;
+  display: inline-block;
+}
+details[open] .advanced-summary::before { transform: rotate(90deg); }
+.advanced-grid {
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+
 .instruction-row { display: flex; flex-direction: column; gap: 6px; }
 .instr-label     { font-size: .85rem; font-weight: 600; color: var(--text-muted); }
 .instr-controls  { display: flex; gap: 8px; }

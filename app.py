@@ -231,16 +231,16 @@ def generate_book(session_id: str):
         with uploads_lock:
             derivative_text = uploads.get(upload_id, "")
 
-    # ---- Autonomous prompt generation from super-prompt ----
-    # When a super-prompt is provided, use it to auto-generate the book's
-    # genre, title, and plot so that all generated books share the same
-    # thematic DNA while still varying from one another.
+    # ---- Autonomous prompt generation from seed ----
+    # When a seed (super-prompt) is provided, use it to auto-generate the book's
+    # genre, title, and plot so that all generated books grow organically from the
+    # same creative seed while still varying from one another.
     genre = cfg.get("genre", "").strip()
     plot = cfg.get("plot", "").strip()
     title = cfg.get("title", "").strip()
 
     if super_prompt:
-        push("status", {"msg": "Generating book concept from super-prompt…", "phase": "prompts"})
+        push("status", {"msg": "Generating book concept from seed…", "phase": "prompts"})
 
         needs_title = not title
         needs_plot = not plot
@@ -256,10 +256,10 @@ def generate_book(session_id: str):
                 missing.append("PLOT: <2-4 sentence synopsis covering setting, protagonist, central conflict, and stakes>")
 
             gen_prompt = (
-                "You are a creative writing consultant. Based on the following creative guardrail, "
-                "generate a unique and compelling book concept. The guardrail describes the shared "
-                "genre, themes, tone, and plot tendencies that all books in this series must follow.\n\n"
-                f"Guardrail: {super_prompt}\n\n"
+                "You are a creative writing consultant. Based on the following creative seed, "
+                "generate a unique and compelling book concept. The seed defines the shared "
+                "genre, themes, tone, and story tendencies that all books grown from it must embody.\n\n"
+                f"Seed: {super_prompt}\n\n"
             )
             if derivative_text:
                 gen_prompt += (
@@ -313,17 +313,17 @@ def generate_book(session_id: str):
 
     push("status", {"msg": f'Starting book: "{title}"', "phase": "outline"})
 
-    # Build system message — super-prompt acts as the persistent style guardrail
-    # for every generation step throughout the book
+    # Build system message — super-prompt (seed) informs every generation step,
+    # driving the voice, themes, and style throughout the book
     system_content = (
         f"You are a skilled {genre} author writing a book titled \"{title}\". "
         "Write vivid, immersive prose. Each chapter should be at least 800 words."
     )
     if super_prompt:
         system_content += (
-            "\n\nCreative guardrail — you must honour this throughout the entire book. "
-            "It defines the genre conventions, recurring themes, tone, plot tendencies, "
-            f"and stylistic expectations for this work:\n{super_prompt}"
+            "\n\nCreative seed — let this guide the entire voice, themes, style, "
+            "and story direction of the book. Every prompt and chapter should grow "
+            f"organically from this seed:\n{super_prompt}"
         )
     if derivative_text:
         excerpt = derivative_text[:DERIVATIVE_SYSTEM_CHARS]
