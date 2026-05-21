@@ -15,6 +15,7 @@
   const numChEl         = $('num-chapters');
   const plotEl          = $('plot');
   const superPromptEl   = $('super-prompt');
+  const numBooksTotalEl = $('num-books-total');
   const derivativeFile  = $('derivative-file');
   const fileNameLabel   = $('derivative-file-name');
   const btnClearUpload  = $('btn-clear-upload');
@@ -39,7 +40,7 @@
   // -- Config persistence (localStorage) -------------------------------------
   const CONFIG_KEY    = 'liteproducer_config';
   const THEME_KEY     = 'liteproducer_theme';
-  const configFields  = [endpointEl, apiKeyEl, modelEl, systemPromptEl, titleEl, genreEl, numChEl, plotEl, superPromptEl];
+  const configFields  = [endpointEl, apiKeyEl, modelEl, systemPromptEl, titleEl, genreEl, numChEl, plotEl, superPromptEl, numBooksTotalEl];
 
   function saveConfig() {
     const cfg = {};
@@ -86,6 +87,8 @@
   let chipMap       = {};
   let seenBooks     = new Set();
   let uploadId      = null;   // set after a successful /api/upload
+  let booksTarget   = 1;      // how many books to generate in a batch
+  let booksGenerated = 0;     // books completed in the current batch
 
   // -- Helpers ----------------------------------------------------------------
   function setStatus(msg, cls) {
@@ -275,22 +278,34 @@
         setRunning(false);
         sessionId = null;
         if (evtSource) { evtSource.close(); evtSource = null; }
+        booksGenerated++;
         if (continuous) {
           setStatus('Continuous mode: starting next book in 3 s\u2026', 'status-active');
-          setTimeout(startGeneration, 3000);
+          setTimeout(() => startGeneration(true), 3000);
+        } else if (booksGenerated < booksTarget) {
+          setStatus(`Batch: book ${booksGenerated} of ${booksTarget} done \u2014 starting next in 3 s\u2026`, 'status-active');
+          setTimeout(() => startGeneration(true), 3000);
         } else {
-          setStatus('Done! Your book is ready.', 'status-done');
+          setStatus(
+            booksTarget > 1 ? `Done! Generated ${booksGenerated} book${booksGenerated > 1 ? 's' : ''}.` : 'Done! Your book is ready.',
+            'status-done'
+          );
         }
         break;
     }
   }
 
   // -- Start generation -------------------------------------------------------
-  async function startGeneration() {
+  async function startGeneration(isAutoRestart = false) {
     const endpoint = endpointEl.value.trim();
     if (!endpoint) {
       alert('Please enter a Chat Completions endpoint URL.');
       return;
+    }
+
+    if (!isAutoRestart) {
+      booksTarget    = parseInt(numBooksTotalEl.value) || 1;
+      booksGenerated = 0;
     }
 
     previewEl.textContent = '';
@@ -391,7 +406,7 @@
   }
 
   // -- Wire up events ---------------------------------------------------------
-  btnStart.addEventListener('click',      startGeneration);
+  btnStart.addEventListener('click',      () => startGeneration(false));
   btnCancel.addEventListener('click',     cancelGeneration);
   btnContinuous.addEventListener('click', toggleContinuous);
   btnRefresh.addEventListener('click',    refreshBooks);
