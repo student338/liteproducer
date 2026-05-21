@@ -33,20 +33,13 @@
       <section class="panel" id="config-panel">
         <h2>⚙️ Book Configuration</h2>
         <div class="form-grid">
-          <div class="field field--wide">
-            <label for="super-prompt">
-              Super-Prompt <span class="tag-hint">(seed)</span>
-            </label>
-            <textarea id="super-prompt" rows="3" placeholder="e.g. A world where magic is tied to music, dark academia tone, coming-of-age themes with morally grey characters…"></textarea>
-            <small class="field-hint">Acts as a generative seed — the AI will autonomously derive the genre, title, plot, and every chapter prompt from this. Leave other fields blank to let the seed drive everything.</small>
+          <div class="field">
+            <label for="title">Book Title <span class="tag-hint">(optional)</span></label>
+            <input id="title" type="text" placeholder="Leave blank to auto-generate" />
           </div>
           <div class="field">
-            <label for="title">Book Title <span class="tag-hint">(optional — auto-seeded)</span></label>
-            <input id="title" type="text" placeholder="Leave blank to auto-generate from seed" />
-          </div>
-          <div class="field">
-            <label for="genre">Genre <span class="tag-hint">(optional — auto-seeded)</span></label>
-            <input id="genre" type="text" placeholder="Leave blank to auto-generate from seed" list="genre-list" />
+            <label for="genre">Genre <span class="tag-hint">(optional)</span></label>
+            <input id="genre" type="text" placeholder="Leave blank to auto-generate" list="genre-list" />
             <datalist id="genre-list">
               <option value="fantasy"></option>
               <option value="science fiction"></option>
@@ -65,8 +58,8 @@
             <input id="num-chapters" type="number" min="1" max="30" value="5" />
           </div>
           <div class="field field--wide">
-            <label for="plot">Plot / Synopsis <span class="tag-hint">(optional — auto-seeded)</span></label>
-            <textarea id="plot" rows="3" placeholder="Leave blank to auto-generate from seed, or describe the plot, setting, characters, themes…"></textarea>
+            <label for="plot">Plot / Synopsis <span class="tag-hint">(optional)</span></label>
+            <textarea id="plot" rows="3" placeholder="Describe the plot, setting, characters, themes… or leave blank"></textarea>
           </div>
           <div class="field field--wide">
             <label>Derivative Work Source <span class="tag-hint">(.pdf / .md / .txt)</span></label>
@@ -79,6 +72,25 @@
             <small class="field-hint">The AI will draw from this document when building the story.</small>
           </div>
         </div>
+
+        <!-- Autonomous / Batch Mode -->
+        <details class="advanced-options" id="autonomous-options">
+          <summary class="advanced-summary">🤖 Autonomous / Batch Mode</summary>
+          <div class="autonomous-grid advanced-grid">
+            <div class="field field--wide">
+              <label for="super-prompt">
+                Super-Prompt <span class="tag-hint">(creative seed)</span>
+              </label>
+              <textarea id="super-prompt" rows="3" placeholder="e.g. A world where magic is tied to music, dark academia tone, coming-of-age themes with morally grey characters…"></textarea>
+              <small class="field-hint">Acts as a generative seed — the AI will autonomously derive the genre, title, plot, and every chapter prompt from this. Recommended when generating multiple books.</small>
+            </div>
+            <div class="field">
+              <label for="num-books-total">Number of Books <span class="tag-hint">(batch)</span></label>
+              <input id="num-books-total" type="number" min="1" max="100" value="1" />
+              <small class="field-hint">Generate multiple books in sequence. Each book is derived from the seed above (if provided). Set to 1 for single-book mode (default).</small>
+            </div>
+          </div>
+        </details>
 
         <!-- API Settings -->
         <details class="advanced-options" id="advanced-options">
