@@ -1,7 +1,16 @@
 # liteproducer
 The very simple, production-ready AI-powered literature producer 📚🤖
 
-![liteproducer screenshot](https://github.com/user-attachments/assets/e048804d-f647-47b4-b7f3-aa7b619c712c)
+![liteproducer dark theme](docs/screenshots/dark-theme.png)
+
+<details>
+<summary>More themes</summary>
+
+![liteproducer light theme](docs/screenshots/light-theme.png)
+
+![liteproducer sepia theme](docs/screenshots/sepia-theme.png)
+
+</details>
 
 ## Features
 
