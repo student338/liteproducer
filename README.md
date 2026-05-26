@@ -37,9 +37,26 @@ The very simple, production-ready AI-powered literature producer 📚🤖
 - **PDF export** – each completed book is saved as a downloadable `.pdf` file
 - **Five themes** – Dark, Light, Sepia, Ocean, Terminal; preference is remembered across sessions
 
-## Quick Start
+## Installation
+
+### Prerequisites
+
+- **Python 3.10+**
+- **pip** (included with Python)
+- **Node.js 18+** and **npm** (only required for the PWA / Tauri desktop app)
+
+### Server (Flask)
 
 ```bash
+# Clone the repository
+git clone https://github.com/student338/liteproducer.git
+cd liteproducer
+
+# Create and activate a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate        # Linux / macOS
+# venv\Scripts\activate         # Windows
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -48,6 +65,16 @@ python app.py
 ```
 
 Then open **http://localhost:5000** in your browser.
+
+### PWA / Desktop App
+
+```bash
+cd pwa
+npm install
+npm run dev        # Vite dev server at http://localhost:1420
+```
+
+See the [Desktop & Mobile App](#desktop--mobile-app-pwa--tauri) section below for native builds.
 
 ## Usage
 
