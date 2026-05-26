@@ -61,3 +61,47 @@ Then open **http://localhost:5000** in your browser.
 8. Download finished books from the **📂 Generated Books** section
 
 Generated PDFs are saved in the `books/` directory.
+
+## Desktop & Mobile App (PWA / Tauri)
+
+liteproducer is also available as a standalone Progressive Web App and native desktop/mobile app via [Tauri](https://tauri.app/). The PWA version lives in the `/pwa` directory and does **not** require the Python server — it calls LLM APIs directly from the client and can even run models locally via WebLLM (WASM).
+
+### Quick Start (PWA dev)
+
+```bash
+cd pwa
+npm install
+npm run dev        # Vite dev server at http://localhost:1420
+npm run build      # Production build in pwa/dist/
+```
+
+### Native App (Tauri)
+
+```bash
+cd pwa
+npm install
+npm run tauri:dev      # Dev mode with hot-reload
+npm run tauri:build    # Build platform installer
+```
+
+### Platform Installers
+
+| Platform | Format | Build Command |
+|----------|--------|---------------|
+| Windows  | `.exe` / `.msi` | `npm run tauri:build` |
+| macOS    | `.app` / `.dmg` | `npm run tauri:build` |
+| Linux    | `.AppImage` / `.deb` | `npm run tauri:build` |
+| Android  | `.apk` | `npm run tauri:android:build` |
+| iOS      | `.ipa` | `npm run tauri:ios:build` |
+
+See [`pwa/BUILD.md`](pwa/BUILD.md) for detailed build prerequisites and instructions.
+
+### WebLLM (Local AI via WASM)
+
+The PWA supports running LLM inference entirely on-device using [WebLLM](https://webllm.mlc.ai/):
+
+1. Open **🧠 Local AI (WebLLM)** in the app
+2. Select and load a model (downloaded once, cached locally)
+3. Generate books without an API key or internet connection
+
+Supported models include Llama 3.1 8B, Mistral 7B, Gemma 2 2B, Phi 3.5 Mini, and TinyLlama 1.1B.

@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Default permissions for liteproducer",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "fs:default",
+    "dialog:default"
+  ]
+}

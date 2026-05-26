@@ -12,3 +12,7 @@ dist/
 build/
 .DS_Store
 api.env
+pwa/node_modules/
+pwa/dist/
+pwa/src-tauri/target/
+pwa/src-tauri/gen/
