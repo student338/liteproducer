@@ -1,0 +1,12 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+*.apk
+*.exe
+*.msi
+*.AppImage
+*.deb
+*.dmg
+*.ipa
+.DS_Store
