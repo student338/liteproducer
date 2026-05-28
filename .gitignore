@@ -16,3 +16,6 @@ pwa/node_modules/
 pwa/dist/
 pwa/src-tauri/target/
 pwa/src-tauri/gen/
+docker-compose.override.yml
+docker-compose.standalone.override.yml
+start.bat
