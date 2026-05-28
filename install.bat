@@ -19,11 +19,13 @@ echo Select installation mode:
 echo   1) Full Docker (uWSGI + Nginx) - recommended for production
 echo   2) Docker Standalone (Flask dev server, no uWSGI/Nginx)
 echo   3) Dockerless (local Python, no Docker required)
-echo   4) Uninstall / Cleanup
+echo   4) PWA Installers (Desktop/Mobile apps via Tauri)
+echo   5) Uninstall / Cleanup
 echo.
-set /p MODE="Enter choice (1, 2, 3, or 4): "
+set /p MODE="Enter choice (1, 2, 3, 4, or 5): "
 
-if "%MODE%"=="4" goto uninstall
+if "%MODE%"=="5" goto uninstall
+if "%MODE%"=="4" goto config_pwa
 if "%MODE%"=="3" goto config_dockerless
 if "%MODE%"=="2" goto config_standalone
 if "%MODE%"=="1" goto config_full
@@ -75,6 +77,20 @@ if "!FLASK_DEBUG!"=="" set "FLASK_DEBUG=0"
 set /p AUTO_START="Auto-start the server after install? (Y/N) [default: N]: "
 if "!AUTO_START!"=="" set "AUTO_START=N"
 goto confirm_dockerless
+
+:config_pwa
+echo.
+echo --- Configuration (PWA Installers) ---
+echo.
+echo Select build target:
+echo   1) Windows (.exe / .msi)
+echo   2) Android (.apk)
+echo   3) iOS (.ipa)
+echo   4) Web PWA (static dist/ folder)
+echo.
+set /p PWA_TARGET="Enter choice (1, 2, 3, or 4): "
+if "!PWA_TARGET!"=="" set "PWA_TARGET=1"
+goto confirm_pwa
 
 :: ============================================
 :: Confirmation screens
@@ -138,6 +154,26 @@ if /i "!CONFIRM!" neq "Y" (
     exit /b 0
 )
 goto dockerless
+
+:confirm_pwa
+echo.
+echo ============================================
+echo   Installation Summary
+echo ============================================
+echo   Mode:           PWA Installers (Tauri)
+if "!PWA_TARGET!"=="1" echo   Target:         Windows (.exe / .msi)
+if "!PWA_TARGET!"=="2" echo   Target:         Android (.apk)
+if "!PWA_TARGET!"=="3" echo   Target:         iOS (.ipa)
+if "!PWA_TARGET!"=="4" echo   Target:         Web PWA (dist/)
+echo ============================================
+echo.
+set /p CONFIRM="Proceed with build? (Y/N): "
+if /i "!CONFIRM!" neq "Y" (
+    echo Build cancelled.
+    pause
+    exit /b 0
+)
+goto pwa
 
 :: ============================================
 :: Installation steps
@@ -356,6 +392,124 @@ echo   Then access at http://localhost:!DOCKERLESS_PORT!
 echo ============================================
 goto end
 
+:pwa
+echo.
+echo [1/3] Checking prerequisites...
+echo.
+
+:: Check for Node.js
+where node >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [ERROR] Node.js is not installed or not in PATH.
+    echo Please install Node.js ^>= 18 from https://nodejs.org/
+    pause
+    exit /b 1
+)
+
+:: Display Node version
+echo Node.js found:
+node --version
+
+:: Check for Rust (required for Tauri desktop/mobile builds)
+if "!PWA_TARGET!" neq "4" (
+    where rustc >nul 2>nul
+    if %errorlevel% neq 0 (
+        echo [ERROR] Rust is not installed or not in PATH.
+        echo Please install Rust from https://rustup.rs/
+        pause
+        exit /b 1
+    )
+    echo Rust found:
+    rustc --version
+)
+
+echo.
+echo [2/3] Installing dependencies...
+echo.
+
+cd pwa
+call npm install
+if %errorlevel% neq 0 (
+    echo [ERROR] npm install failed.
+    cd ..
+    pause
+    exit /b 1
+)
+
+echo.
+echo [3/3] Building PWA installer...
+echo.
+
+if "!PWA_TARGET!"=="1" (
+    call npm run tauri:build
+    if %errorlevel% neq 0 (
+        echo [ERROR] Tauri build failed.
+        cd ..
+        pause
+        exit /b 1
+    )
+    echo.
+    echo ============================================
+    echo   Build complete!
+    echo   Windows installers:
+    echo     src-tauri\target\release\bundle\nsis\liteproducer_1.0.0_x64-setup.exe
+    echo     src-tauri\target\release\bundle\msi\liteproducer_1.0.0_x64.msi
+    echo ============================================
+)
+
+if "!PWA_TARGET!"=="2" (
+    call npm run tauri:android:init 2>nul
+    call npm run tauri:android:build
+    if %errorlevel% neq 0 (
+        echo [ERROR] Android build failed.
+        cd ..
+        pause
+        exit /b 1
+    )
+    echo.
+    echo ============================================
+    echo   Build complete!
+    echo   Android APK:
+    echo     src-tauri\gen\android\app\build\outputs\apk\universal\release\app-universal-release.apk
+    echo ============================================
+)
+
+if "!PWA_TARGET!"=="3" (
+    call npm run tauri:ios:init 2>nul
+    call npm run tauri:ios:build
+    if %errorlevel% neq 0 (
+        echo [ERROR] iOS build failed.
+        cd ..
+        pause
+        exit /b 1
+    )
+    echo.
+    echo ============================================
+    echo   Build complete!
+    echo   iOS IPA:
+    echo     src-tauri\gen\apple\build\arm64\liteproducer.ipa
+    echo ============================================
+)
+
+if "!PWA_TARGET!"=="4" (
+    call npm run build
+    if %errorlevel% neq 0 (
+        echo [ERROR] Vite build failed.
+        cd ..
+        pause
+        exit /b 1
+    )
+    echo.
+    echo ============================================
+    echo   Build complete!
+    echo   PWA output: pwa\dist\
+    echo   Deploy this folder to any static host.
+    echo ============================================
+)
+
+cd ..
+goto end
+
 :: ============================================
 :: Uninstall / Cleanup
 :: ============================================
@@ -370,19 +524,21 @@ echo What would you like to remove?
 echo   1) Stop and remove Docker containers only
 echo   2) Remove Docker containers and images
 echo   3) Remove virtual environment (dockerless mode)
-echo   4) Full cleanup (all of the above)
-echo   5) Cancel
+echo   4) Remove PWA build artifacts
+echo   5) Full cleanup (all of the above)
+echo   6) Cancel
 echo.
-set /p UNINSTALL_MODE="Enter choice (1-5): "
+set /p UNINSTALL_MODE="Enter choice (1-6): "
 
-if "!UNINSTALL_MODE!"=="5" (
+if "!UNINSTALL_MODE!"=="6" (
     echo Cancelled.
     goto end
 )
 if "!UNINSTALL_MODE!"=="1" goto uninstall_containers
 if "!UNINSTALL_MODE!"=="2" goto uninstall_images
 if "!UNINSTALL_MODE!"=="3" goto uninstall_venv
-if "!UNINSTALL_MODE!"=="4" goto uninstall_all
+if "!UNINSTALL_MODE!"=="4" goto uninstall_pwa
+if "!UNINSTALL_MODE!"=="5" goto uninstall_all
 
 echo Invalid choice.
 goto end
@@ -420,6 +576,28 @@ if exist "start.bat" del start.bat
 echo Done.
 goto end
 
+:uninstall_pwa
+echo.
+echo Removing PWA build artifacts...
+if exist "pwa\node_modules" (
+    rmdir /s /q pwa\node_modules
+    echo Node modules removed.
+)
+if exist "pwa\dist" (
+    rmdir /s /q pwa\dist
+    echo PWA dist folder removed.
+)
+if exist "pwa\src-tauri\target" (
+    rmdir /s /q pwa\src-tauri\target
+    echo Tauri build artifacts removed.
+)
+if exist "pwa\src-tauri\gen" (
+    rmdir /s /q pwa\src-tauri\gen
+    echo Tauri generated files removed.
+)
+echo Done.
+goto end
+
 :uninstall_all
 echo.
 echo Performing full cleanup...
@@ -429,6 +607,10 @@ del docker-compose.override.yml >nul 2>nul
 del docker-compose.standalone.override.yml >nul 2>nul
 if exist "venv" rmdir /s /q venv
 if exist "start.bat" del start.bat
+if exist "pwa\node_modules" rmdir /s /q pwa\node_modules
+if exist "pwa\dist" rmdir /s /q pwa\dist
+if exist "pwa\src-tauri\target" rmdir /s /q pwa\src-tauri\target
+if exist "pwa\src-tauri\gen" rmdir /s /q pwa\src-tauri\gen
 echo Full cleanup complete.
 goto end
 
