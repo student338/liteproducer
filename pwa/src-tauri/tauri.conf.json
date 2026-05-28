@@ -1,7 +1,7 @@
 {
   "productName": "liteproducer",
   "version": "1.0.0",
-  "identifier": "com.liteproducer.app",
+  "identifier": "com.liteproducer.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
