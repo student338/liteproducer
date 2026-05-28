@@ -66,6 +66,18 @@ python app.py
 
 Then open **http://localhost:5000** in your browser.
 
+### Production Deployment (Docker + Nginx)
+
+```bash
+docker compose up --build -d
+```
+
+This starts:
+- **Gunicorn** serving the Flask app on an internal port
+- **Nginx** as a reverse proxy on port **80**, handling static files and proxying API/SSE requests to Gunicorn
+
+Open **http://localhost** to access the application.
+
 ### PWA / Desktop App
 
 ```bash

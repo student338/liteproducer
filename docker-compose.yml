@@ -1,0 +1,20 @@
+services:
+  web:
+    build: .
+    volumes:
+      - ./books:/app/books
+    expose:
+      - "5000"
+    environment:
+      - FLASK_DEBUG=0
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./static:/app/static:ro
+      - ./books:/app/books:ro
+    depends_on:
+      - web
