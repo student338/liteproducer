@@ -413,7 +413,7 @@ node --version
 :: Check for Rust (required for Tauri desktop/mobile builds)
 if "!PWA_TARGET!" neq "4" (
     where rustc >nul 2>nul
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] Rust is not installed or not in PATH.
         echo Please install Rust from https://rustup.rs/
         pause
@@ -423,10 +423,22 @@ if "!PWA_TARGET!" neq "4" (
     rustc --version
 )
 
+:: Validate PWA_TARGET
+if "!PWA_TARGET!" neq "1" if "!PWA_TARGET!" neq "2" if "!PWA_TARGET!" neq "3" if "!PWA_TARGET!" neq "4" (
+    echo [ERROR] Invalid build target: !PWA_TARGET!
+    pause
+    exit /b 1
+)
+
 echo.
 echo [2/3] Installing dependencies...
 echo.
 
+if not exist "pwa" (
+    echo [ERROR] pwa directory not found. Please ensure the repository is complete.
+    pause
+    exit /b 1
+)
 cd pwa
 call npm install
 if %errorlevel% neq 0 (
@@ -442,7 +454,7 @@ echo.
 
 if "!PWA_TARGET!"=="1" (
     call npm run tauri:build
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] Tauri build failed.
         cd ..
         pause
@@ -460,7 +472,7 @@ if "!PWA_TARGET!"=="1" (
 if "!PWA_TARGET!"=="2" (
     call npm run tauri:android:init 2>nul
     call npm run tauri:android:build
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] Android build failed.
         cd ..
         pause
@@ -477,7 +489,7 @@ if "!PWA_TARGET!"=="2" (
 if "!PWA_TARGET!"=="3" (
     call npm run tauri:ios:init 2>nul
     call npm run tauri:ios:build
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] iOS build failed.
         cd ..
         pause
@@ -493,7 +505,7 @@ if "!PWA_TARGET!"=="3" (
 
 if "!PWA_TARGET!"=="4" (
     call npm run build
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] Vite build failed.
         cd ..
         pause
