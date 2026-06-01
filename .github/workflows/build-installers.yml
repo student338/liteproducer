@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-desktop:
@@ -18,12 +18,15 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             artifact: windows
+            binary_name: liteproducer.exe
           - platform: macos-latest
             target: aarch64-apple-darwin
             artifact: macos
+            binary_name: liteproducer
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             artifact: linux
+            binary_name: liteproducer
 
     runs-on: ${{ matrix.platform }}
     defaults:
@@ -56,6 +59,12 @@ jobs:
         run: npx tauri build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
+      - name: Upload executable binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.artifact }}
+          path: pwa/src-tauri/target/release/${{ matrix.binary_name }}
 
       - name: Upload artifacts (Windows)
         if: matrix.platform == 'windows-latest'
@@ -169,3 +178,38 @@ jobs:
         with:
           name: installer-ios
           path: pwa/src-tauri/gen/apple/build/**/*.ipa
+
+  create-release:
+    needs: [build-desktop, build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          # Copy executable binaries with platform suffix
+          cp artifacts/binary-windows/liteproducer.exe release/liteproducer-windows-x86_64.exe || true
+          cp artifacts/binary-macos/liteproducer release/liteproducer-macos-aarch64 || true
+          cp artifacts/binary-linux/liteproducer release/liteproducer-linux-x86_64 || true
+          # Copy installers
+          cp artifacts/installer-windows/*.exe release/ || true
+          cp artifacts/installer-windows/*.msi release/ || true
+          cp artifacts/installer-macos/*.dmg release/ || true
+          cp artifacts/installer-linux/*.AppImage release/ || true
+          cp artifacts/installer-linux/*.deb release/ || true
+          cp artifacts/installer-android/**/*.apk release/ || true
+          cp artifacts/installer-ios/**/*.ipa release/ || true
+          ls -la release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          draft: false
