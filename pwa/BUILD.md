@@ -73,13 +73,13 @@ The PWA includes:
 - Full-screen standalone mode
 - All features work without a backend server
 
-## WebLLM (Local AI)
+## Local AI (llama.cpp)
 
-The app supports running LLM inference locally via WebLLM (WebAssembly):
-1. Open **🧠 Local AI (WebLLM)** settings
-2. Select a model from the dropdown
-3. Click **⬇️ Load Model** (downloads WASM model on first use)
+The app supports running LLM inference locally via a llama.cpp Web Worker (WebAssembly):
+1. Open **🧠 Local AI (llama.cpp)** settings
+2. Select a `.gguf` or `.safetensors` model file from your device, or enter a URL to a model
+3. Click **⬇️ Load Model** (model is loaded into the browser's memory)
 4. Check **Use local model for generation**
 5. Generate books without needing an API key or internet connection
 
-Supported models include Llama 3.1, Mistral, Gemma, Phi, and TinyLlama variants.
+Any GGUF-compatible model works — download quantized models from Hugging Face (e.g. TheBloke's GGUF repositories).

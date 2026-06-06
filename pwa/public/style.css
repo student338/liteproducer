@@ -941,10 +941,10 @@ details[open] .advanced-summary::before { transform: rotate(90deg); }
 }
 
 /* =============================================================================
-   WebLLM STYLES
+   LLAMA.CPP STYLES
    ============================================================================= */
 
-.webllm-status {
+.llamacpp-status {
   font-size: 0.85rem;
   padding: 6px 10px;
   border-radius: var(--radius-btn);
@@ -953,14 +953,14 @@ details[open] .advanced-summary::before { transform: rotate(90deg); }
   color: var(--text-muted);
 }
 
-.webllm-progress-container {
+.llamacpp-progress-container {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 6px;
 }
 
-.webllm-progress-container progress {
+.llamacpp-progress-container progress {
   flex: 1;
   height: 8px;
   border-radius: 4px;
@@ -969,22 +969,22 @@ details[open] .advanced-summary::before { transform: rotate(90deg); }
   -webkit-appearance: none;
 }
 
-.webllm-progress-container progress::-webkit-progress-bar {
+.llamacpp-progress-container progress::-webkit-progress-bar {
   background: var(--bg3);
   border-radius: 4px;
 }
 
-.webllm-progress-container progress::-webkit-progress-value {
+.llamacpp-progress-container progress::-webkit-progress-value {
   background: var(--accent);
   border-radius: 4px;
 }
 
-.webllm-progress-container progress::-moz-progress-bar {
+.llamacpp-progress-container progress::-moz-progress-bar {
   background: var(--accent);
   border-radius: 4px;
 }
 
-#webllm-progress-text {
+#llamacpp-progress-text {
   font-size: 0.8rem;
   color: var(--text-muted);
   min-width: 40px;

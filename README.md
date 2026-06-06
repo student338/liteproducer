@@ -103,7 +103,7 @@ Generated PDFs are saved in the `books/` directory.
 
 ## Desktop & Mobile App (PWA / Tauri)
 
-liteproducer is also available as a standalone Progressive Web App and native desktop/mobile app via [Tauri](https://tauri.app/). The PWA version lives in the `/pwa` directory and does **not** require the Python server — it calls LLM APIs directly from the client and can even run models locally via WebLLM (WASM).
+liteproducer is also available as a standalone Progressive Web App and native desktop/mobile app via [Tauri](https://tauri.app/). The PWA version lives in the `/pwa` directory and does **not** require the Python server — it calls LLM APIs directly from the client and can even run models locally via a llama.cpp background worker (WASM) using any .gguf model file.
 
 ### Quick Start (PWA dev)
 
@@ -135,12 +135,13 @@ npm run tauri:build    # Build platform installer
 
 See [`pwa/BUILD.md`](pwa/BUILD.md) for detailed build prerequisites and instructions.
 
-### WebLLM (Local AI via WASM)
+### Local AI (llama.cpp)
 
-The PWA supports running LLM inference entirely on-device using [WebLLM](https://webllm.mlc.ai/):
+The PWA supports running LLM inference entirely on-device using [llama.cpp](https://github.com/ggerganov/llama.cpp) compiled to WebAssembly:
 
-1. Open **🧠 Local AI (WebLLM)** in the app
-2. Select and load a model (downloaded once, cached locally)
-3. Generate books without an API key or internet connection
+1. Open **🧠 Local AI (llama.cpp)** in the app
+2. Select a `.gguf` or `.safetensors` model file from your device, or provide a URL to download one
+3. Click **⬇️ Load Model** — the model runs in a background Web Worker
+4. Generate books without an API key or internet connection
 
-Supported models include Llama 3.1 8B, Mistral 7B, Gemma 2 2B, Phi 3.5 Mini, and TinyLlama 1.1B.
+Any GGUF-format model is supported (e.g. Llama, Mistral, Phi, Gemma quantized models from Hugging Face).
