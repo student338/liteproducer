@@ -122,37 +122,38 @@
           </div>
         </details>
 
-        <!-- WebLLM Settings -->
-        <details class="advanced-options" id="webllm-options">
-          <summary class="advanced-summary">🧠 Local AI (WebLLM)</summary>
+        <!-- Local AI (llama.cpp) Settings -->
+        <details class="advanced-options" id="llamacpp-options">
+          <summary class="advanced-summary">🧠 Local AI (llama.cpp)</summary>
           <div class="api-settings-grid advanced-grid">
             <div class="field field--wide">
-              <label for="webllm-model">Local Model</label>
-              <select id="webllm-model">
-                <option value="">— Select a model to run locally —</option>
-                <option value="Llama-3.1-8B-Instruct-q4f32_1-MLC">Llama 3.1 8B (q4f32)</option>
-                <option value="Llama-3.1-8B-Instruct-q4f16_1-MLC">Llama 3.1 8B (q4f16)</option>
-                <option value="Mistral-7B-Instruct-v0.3-q4f32_1-MLC">Mistral 7B v0.3 (q4f32)</option>
-                <option value="gemma-2-2b-it-q4f32_1-MLC">Gemma 2 2B (q4f32)</option>
-                <option value="Phi-3.5-mini-instruct-q4f32_1-MLC">Phi 3.5 Mini (q4f32)</option>
-                <option value="TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC">TinyLlama 1.1B (q4f32)</option>
-              </select>
-              <small class="field-hint">Run AI inference locally using WebLLM (WASM). No API key needed. Model will be downloaded on first use.</small>
+              <label>Model File <span class="tag-hint">(.gguf / .safetensors)</span></label>
+              <div class="file-upload-row">
+                <label for="llamacpp-file" class="btn btn-secondary btn-sm file-btn">📎 Choose Model</label>
+                <input id="llamacpp-file" type="file" accept=".gguf,.safetensors,.bin" hidden />
+                <span id="llamacpp-file-name" class="file-name-label">No file selected</span>
+              </div>
+              <small class="field-hint">Select a .gguf or .safetensors model file from your device to run locally via llama.cpp (WASM).</small>
             </div>
             <div class="field field--wide">
-              <div id="webllm-status" class="webllm-status">Not loaded</div>
-              <div id="webllm-progress-container" class="webllm-progress-container" style="display:none">
-                <progress id="webllm-progress" value="0" max="100"></progress>
-                <span id="webllm-progress-text">0%</span>
+              <label for="llamacpp-url">Or Model URL <span class="tag-hint">(optional)</span></label>
+              <input id="llamacpp-url" type="url" placeholder="https://huggingface.co/…/model.gguf" />
+              <small class="field-hint">Alternatively, provide a direct URL to a .gguf model file. It will be downloaded into the browser.</small>
+            </div>
+            <div class="field field--wide">
+              <div id="llamacpp-status" class="llamacpp-status">Not loaded</div>
+              <div id="llamacpp-progress-container" class="llamacpp-progress-container" style="display:none">
+                <progress id="llamacpp-progress" value="0" max="100"></progress>
+                <span id="llamacpp-progress-text">0%</span>
               </div>
             </div>
             <div class="field">
-              <button id="btn-load-webllm" class="btn btn-secondary">⬇️ Load Model</button>
-              <button id="btn-unload-webllm" class="btn btn-secondary" style="display:none">🗑️ Unload</button>
+              <button id="btn-load-llamacpp" class="btn btn-secondary">⬇️ Load Model</button>
+              <button id="btn-unload-llamacpp" class="btn btn-secondary" style="display:none">🗑️ Unload</button>
             </div>
             <div class="field">
               <label>
-                <input type="checkbox" id="use-webllm" /> Use local model for generation
+                <input type="checkbox" id="use-llamacpp" /> Use local model for generation
               </label>
             </div>
           </div>

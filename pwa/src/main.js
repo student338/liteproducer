@@ -1,9 +1,9 @@
 /**
  * liteproducer PWA — Main application module.
  * Standalone client-side app that calls OpenAI-compatible APIs directly
- * or uses WebLLM for local inference.
+ * or uses a background llama.cpp worker for local inference (.gguf/.safetensors).
  */
-import { loadModel, unloadModel, isModelLoaded, generateStreaming as webllmGenerate } from './webllm.js';
+import { loadModel, unloadModel, isModelLoaded, generateStreaming as llamacppGenerate } from './llamacpp.js';
 import { buildPDF, downloadPDF } from './pdf.js';
 
 // -- Register Service Worker --------------------------------------------------
@@ -47,15 +47,17 @@ const btnInstruct = $('btn-instruct');
 const btnRefresh = $('btn-refresh');
 const bookList = $('book-list');
 
-// WebLLM elements
-const webllmModelEl = $('webllm-model');
-const webllmStatusEl = $('webllm-status');
-const webllmProgressContainer = $('webllm-progress-container');
-const webllmProgress = $('webllm-progress');
-const webllmProgressText = $('webllm-progress-text');
-const btnLoadWebllm = $('btn-load-webllm');
-const btnUnloadWebllm = $('btn-unload-webllm');
-const useWebllmCheckbox = $('use-webllm');
+// llama.cpp elements
+const llamacppStatusEl = $('llamacpp-status');
+const llamacppProgressContainer = $('llamacpp-progress-container');
+const llamacppProgress = $('llamacpp-progress');
+const llamacppProgressText = $('llamacpp-progress-text');
+const btnLoadLlamacpp = $('btn-load-llamacpp');
+const btnUnloadLlamacpp = $('btn-unload-llamacpp');
+const useLlamacppCheckbox = $('use-llamacpp');
+const llamacppFileInput = $('llamacpp-file');
+const llamacppUrlInput = $('llamacpp-url');
+const llamacppFileName = $('llamacpp-file-name');
 
 // -- Config persistence (localStorage) ----------------------------------------
 const CONFIG_KEY = 'liteproducer_config';
@@ -241,10 +243,10 @@ function renderBooks() {
   });
 }
 
-// -- LLM completion (API or WebLLM) -------------------------------------------
+// -- LLM completion (API or llama.cpp) -----------------------------------------
 async function chatCompletion(messages, onToken, signal) {
-  if (useWebllmCheckbox.checked && isModelLoaded()) {
-    return await webllmGenerate(messages, onToken, signal);
+  if (useLlamacppCheckbox.checked && isModelLoaded()) {
+    return await llamacppGenerate(messages, onToken, signal);
   }
 
   // Remote API call
@@ -309,10 +311,10 @@ const DEFAULT_SYSTEM_PROMPT = `You are a highly creative and skilled novelist. Y
 
 async function generateBook(isAutoRestart = false) {
   const endpoint = endpointEl.value.trim();
-  const useLocal = useWebllmCheckbox.checked && isModelLoaded();
+  const useLocal = useLlamacppCheckbox.checked && isModelLoaded();
 
   if (!useLocal && !endpoint) {
-    alert('Please enter a Chat Completions endpoint URL or load a local WebLLM model.');
+    alert('Please enter a Chat Completions endpoint URL or load a local .gguf model.');
     return;
   }
 
@@ -504,44 +506,56 @@ function toggleContinuous() {
   }
 }
 
-// -- WebLLM controls ----------------------------------------------------------
-btnLoadWebllm.addEventListener('click', async () => {
-  const modelId = webllmModelEl.value;
-  if (!modelId) {
-    alert('Please select a model first.');
+// -- llama.cpp controls -------------------------------------------------------
+let selectedModelFile = null;
+
+llamacppFileInput.addEventListener('change', () => {
+  const file = llamacppFileInput.files[0];
+  if (!file) return;
+  selectedModelFile = file;
+  llamacppFileName.textContent = file.name;
+});
+
+btnLoadLlamacpp.addEventListener('click', async () => {
+  const url = llamacppUrlInput.value.trim();
+  const file = selectedModelFile;
+
+  if (!file && !url) {
+    alert('Please select a .gguf/.safetensors file or enter a model URL.');
     return;
   }
 
-  btnLoadWebllm.disabled = true;
-  webllmStatusEl.textContent = 'Loading…';
-  webllmProgressContainer.style.display = '';
+  btnLoadLlamacpp.disabled = true;
+  llamacppStatusEl.textContent = 'Loading…';
+  llamacppProgressContainer.style.display = '';
 
   try {
-    await loadModel(modelId, (progress) => {
+    const options = file ? { file } : { url };
+    await loadModel(options, (progress) => {
       const pct = Math.round((progress.progress || 0) * 100);
-      webllmProgress.value = pct;
-      webllmProgressText.textContent = `${pct}%`;
-      webllmStatusEl.textContent = progress.text || `Loading… ${pct}%`;
+      llamacppProgress.value = pct;
+      llamacppProgressText.textContent = `${pct}%`;
+      llamacppStatusEl.textContent = progress.text || `Loading… ${pct}%`;
     });
 
-    webllmStatusEl.textContent = `✅ Loaded: ${modelId}`;
-    webllmProgressContainer.style.display = 'none';
-    btnLoadWebllm.style.display = 'none';
-    btnUnloadWebllm.style.display = '';
-    useWebllmCheckbox.checked = true;
+    llamacppStatusEl.textContent = `✅ Loaded: ${file ? file.name : url.split('/').pop()}`;
+    llamacppProgressContainer.style.display = 'none';
+    btnLoadLlamacpp.style.display = 'none';
+    btnUnloadLlamacpp.style.display = '';
+    useLlamacppCheckbox.checked = true;
   } catch (e) {
-    webllmStatusEl.textContent = `❌ Error: ${e.message}`;
-    webllmProgressContainer.style.display = 'none';
+    llamacppStatusEl.textContent = `❌ Error: ${e.message}`;
+    llamacppProgressContainer.style.display = 'none';
   }
-  btnLoadWebllm.disabled = false;
+  btnLoadLlamacpp.disabled = false;
 });
 
-btnUnloadWebllm.addEventListener('click', async () => {
+btnUnloadLlamacpp.addEventListener('click', async () => {
   await unloadModel();
-  webllmStatusEl.textContent = 'Not loaded';
-  btnLoadWebllm.style.display = '';
-  btnUnloadWebllm.style.display = 'none';
-  useWebllmCheckbox.checked = false;
+  llamacppStatusEl.textContent = 'Not loaded';
+  btnLoadLlamacpp.style.display = '';
+  btnUnloadLlamacpp.style.display = 'none';
+  useLlamacppCheckbox.checked = false;
 });
 
 // -- Wire up events -----------------------------------------------------------
